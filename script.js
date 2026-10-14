@@ -453,7 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isDictLoading = true;
 
         try {
-            if (dictStatLine) dictStatLine.textContent = '載入字典資料庫中 (約 4 MB)...';
+            if (dictStatLine) dictStatLine.textContent = '載入《護國 評論集》台語字典資料庫中...';
             
             const [dataRes, metaRes] = await Promise.all([
                 fetch('dict_data.json'),
@@ -461,7 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ]);
 
             DICT_DATA = await dataRes.json();
-            DICT_META = metaRes ? await metaRes.json() : { word_headwords: 8060, phrase_headwords: 79 };
+            DICT_META = metaRes ? await metaRes.json() : { word_headwords: 1800, phrase_headwords: 36 };
             headwords = Object.keys(DICT_DATA);
 
             // Build search index and letter index
@@ -484,7 +484,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dictCurrentLetter = letters[0] || 'A';
 
             if (dictStatLine) {
-                dictStatLine.textContent = `${headwords.length.toLocaleString()} 條台語詞目，涵蓋漢字、白話字與台羅拼音`;
+                dictStatLine.textContent = `${headwords.length.toLocaleString()} 條本書台語詞目，完整收錄《護國 評論集》全羅與漢羅語彙`;
             }
 
             renderDictLetterGrid();
@@ -725,10 +725,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!dictContentInner) return;
         dictContentInner.innerHTML = `
         <div class="help-page">
-            <h2>台語詞典與拼音說明 · Tâi-gí Sû-tián Guide</h2>
+            <h2>《護國 評論集》專屬台語詞典與拼音說明 · Tâi-gí Sû-tián Guide</h2>
             <div class="help-card">
-                <p>本詞典為<strong>台語文漢羅與全羅對照辭典模式</strong>，語料彙整自杜信龍老師之台語文作品。
-                詞條涵蓋台語漢字、白話字（POJ）與教育部臺灣閩南語羅馬字拼音（台羅 Tâi-lô），提供即時例句、出現頻率與發音對照。</p>
+                <p>本詞典為<strong>《護國 評論集》專屬台語文、全羅與漢羅對照辭典模式</strong>，語料 100% 完整擷取自杜信龍老師所著之本書（《護國 評論集》）所有台語篇章、白話字 (POJ)、教育部台羅 (Tâi-lô) 與漢羅詞彙。
+                詞目涵蓋台語漢字、白話字與台羅雙向拼音，並提供本書真實篇章之原汁原味上下文例句、出現頻率與發音對照。</p>
             </div>
 
             <h2>搜尋功能與多格式支援 · How to Search</h2>
