@@ -335,15 +335,32 @@ def finish_article(art_num, cat, title, elems):
     prev_id = f"section-{art_num - 1}"
     next_id = f"section-{art_num + 1}"
     
+    # Detect if article is Taiwanese / Han-lo
+    is_taiwanese = (cat in ['母語議題', '台語相關雜文', '序言']) or ('ê' in clean_t) or ('--lah' in clean_t)
+    if not is_taiwanese:
+        sample_body = " ".join(body_parts[:4])
+        tw_markers = ['ê', 'm̄', 'bē', 'bōe', 'kā', 'chit ', 'lóng', 'tio̍h', 'thang', 'hō͘', 'siáⁿ', 'án-chóaⁿ', 'chiah ', 'chhan-chhiūⁿ']
+        if sum(1 for m in tw_markers if m in sample_body.lower()) >= 2:
+            is_taiwanese = True
+
+    tw_badge_html = f'''
+    <div class="taiwanese-toolbar-strip">
+        <span class="tw-strip-tag">🇹🇼 漢羅／全羅台語篇章</span>
+        <button class="tw-strip-btn" onclick="openDictModeWithSelection('{clean_t}')">📚 查台語字典模式</button>
+    </div>
+    ''' if is_taiwanese else ''
+
     content = f'''
     <div class="article-header">
         <span class="category-badge {cat_class}">【{cat}】</span>
+        {f'<span class="lang-pill">漢羅台文</span>' if is_taiwanese else ''}
         <h1 class="article-title">{clean_t}</h1>
         <div class="article-meta-bar">
             {f'<span class="meta-item meta-date">📅 {art_date}</span>' if art_date else ''}
             <span class="meta-item meta-cat">📂 {cat}</span>
             <span class="meta-item meta-num"># {art_num - 1} / 240</span>
         </div>
+        {tw_badge_html}
     </div>
     <div class="article-body">
         {"".join(body_parts)}
@@ -361,6 +378,7 @@ def finish_article(art_num, cat, title, elems):
         'category': cat,
         'date': art_date,
         'type': 'article',
+        'is_taiwanese': is_taiwanese,
         'content_html': content
     }
 
@@ -530,6 +548,7 @@ for s in sections:
     title = s['title']
     cat = s['category']
     date = s.get('date', '')
+    is_tw = s.get('is_taiwanese', False)
     if date:
         date_clean = re.sub(r'^[^\d]*', '', date)
     else:
@@ -547,11 +566,14 @@ for s in sections:
         )
     )
     
+    tw_indicator = '<span class="nav-tw-indicator" title="台語漢羅篇章">台</span>' if is_tw else ''
+
     nav_items_html.append(f'''
-    <li class="nav-item" data-target="{sec_id}" data-category="{cat}" data-search="{html.escape(title.lower())} {html.escape(date_clean)}">
+    <li class="nav-item" data-target="{sec_id}" data-category="{cat}" data-search="{html.escape(title.lower())} {html.escape(date_clean)}{' 台語 漢羅' if is_tw else ''}">
         <div class="nav-item-header">
             <span class="nav-cat-dot dot-{badge_type}"></span>
             <span class="nav-item-title">{title}</span>
+            {tw_indicator}
         </div>
         {f'<div class="nav-item-sub">{html.escape(date_clean[:10])}</div>' if date_clean else ''}
     </li>
@@ -567,19 +589,19 @@ for i, s in enumerate(sections):
     </section>
     ''')
 
-# Assemble index.html
+# Assemble index.html with Reading Mode and Dictionary Mode
 index_html = f'''<!DOCTYPE html>
 <html lang="zh-Hant-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>護國 - 評論集（台-華）| 杜信龍</title>
-    <meta name="description" content="《護國 評論集（台-華）》杜信龍 (Tō͘ Sìn-Liông) 著。收錄 2014-2026 年於民報、自由時報發表之 240 篇政經國安、社會改革、母語復振評論。">
+    <meta name="description" content="《護國 評論集（台-華）》杜信龍 (Tō͘ Sìn-Liông) 著。收錄 2014-2026 年於民報、自由時報發表之 240 篇政經國安、社會改革、母語復振評論。支援台語詞典模式。">
     <meta name="author" content="杜信龍 (Tō͘ Sìn-Liông)">
     
     <!-- Open Graph for sharing on Social Media -->
     <meta property="og:title" content="護國 - 評論集（台-華）| 杜信龍">
-    <meta property="og:description" content="《護國 評論集（台-華）》杜信龍 著。收錄 2014-2026 年 240 篇深度時論。">
+    <meta property="og:description" content="《護國 評論集（台-華）》杜信龍 著。收錄 2014-2026 年 240 篇深度時論，內建 8,139 條台語詞典模式。">
     <meta property="og:type" content="book">
     <meta property="og:image" content="images/cover.jpg">
 
@@ -599,35 +621,52 @@ index_html = f'''<!DOCTYPE html>
         <!-- Sidebar Navigation -->
         <aside id="sidebar" class="sidebar">
             <div class="sidebar-header">
+                <div class="app-mode-switch">
+                    <button id="btn-mode-read" class="mode-btn active" onclick="switchAppMode('read')">📖 閱讀模式</button>
+                    <button id="btn-mode-dict" class="mode-btn" onclick="switchAppMode('dict')">📚 台語字典</button>
+                </div>
+
                 <div class="header-brand">
                     <span class="brand-badge">EBOOK</span>
                     <h2 class="book-logo">護國 評論集</h2>
                     <p class="book-author">杜信龍 (Tō͘ Sìn-Liông) 著</p>
                 </div>
 
-                <!-- Search Input -->
-                <div class="search-box-wrap">
-                    <input type="text" id="search-input" placeholder="🔍 搜尋 240 篇標題/日期..." autocomplete="off" />
-                    <button id="search-clear-btn" class="search-clear-btn" title="清除搜尋">✕</button>
+                <!-- Reading Mode Sidebar Controls -->
+                <div id="sidebar-read-controls">
+                    <!-- Search Input -->
+                    <div class="search-box-wrap">
+                        <input type="text" id="search-input" placeholder="🔍 搜尋 240 篇標題/日期/台語..." autocomplete="off" />
+                        <button id="search-clear-btn" class="search-clear-btn" title="清除搜尋">✕</button>
+                    </div>
+
+                    <!-- Filter Category Tabs -->
+                    <div class="category-tabs" id="category-tabs">
+                        <button class="cat-tab active" data-cat="all">全部 <span class="tab-count">244</span></button>
+                        <button class="cat-tab" data-cat="國家安全">國安 <span class="tab-count">100</span></button>
+                        <button class="cat-tab" data-cat="社會議題">社會 <span class="tab-count">62</span></button>
+                        <button class="cat-tab" data-cat="母語議題">母語 <span class="tab-count">55</span></button>
+                        <button class="cat-tab" data-cat="台語相關雜文">雜文 <span class="tab-count">23</span></button>
+                    </div>
                 </div>
 
-                <!-- Filter Category Tabs -->
-                <div class="category-tabs" id="category-tabs">
-                    <button class="cat-tab active" data-cat="all">全部 <span class="tab-count">244</span></button>
-                    <button class="cat-tab" data-cat="國家安全">國安 <span class="tab-count">100</span></button>
-                    <button class="cat-tab" data-cat="社會議題">社會 <span class="tab-count">62</span></button>
-                    <button class="cat-tab" data-cat="母語議題">母語 <span class="tab-count">55</span></button>
-                    <button class="cat-tab" data-cat="台語相關雜文">雜文 <span class="tab-count">23</span></button>
+                <!-- Dictionary Mode Sidebar Quick Stats -->
+                <div id="sidebar-dict-controls" style="display: none;">
+                    <div class="dict-quick-guide">
+                        <p class="dict-quick-title">📚 台語文辭典快速導覽</p>
+                        <p class="dict-quick-text">涵蓋杜信龍老師作品 8,139+ 條詞目，專為<strong>全羅、漢羅、白話字 (POJ) 與教育部台羅 (Tâi-lô)</strong> 研製。</p>
+                        <button class="btn btn-primary btn-dict-all" onclick="resetDictSearch()">顯示全部詞條 A-Z</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Scrollable Nav List -->
+            <!-- Scrollable Nav List (for Reading Mode) -->
             <ul id="nav-list" class="nav-list">
                 {"".join(nav_items_html)}
             </ul>
             
             <div class="sidebar-footer">
-                <span class="sidebar-copy">史秀里冊房 © 2026</span>
+                <span class="sidebar-copy">史秀里冊房 © 2026 · 杜信龍</span>
             </div>
         </aside>
 
@@ -641,12 +680,68 @@ index_html = f'''<!DOCTYPE html>
                 <button id="menu-toggle" class="menu-toggle" aria-label="打開目錄">
                     <span class="hamburger-icon">☰</span> 目錄
                 </button>
-                <div class="mobile-book-title">護國 評論集</div>
+                <div class="mobile-mode-pills">
+                    <button class="mobile-mode-btn active" id="m-btn-read" onclick="switchAppMode('read')">📖 閱讀</button>
+                    <button class="mobile-mode-btn" id="m-btn-dict" onclick="switchAppMode('dict')">📚 字典</button>
+                </div>
             </header>
 
-            <!-- Book Chapters / Sections -->
-            <div class="sections-container">
-                {"".join(content_sections_html)}
+            <!-- VIEW 1: Reading Mode (Book Articles) -->
+            <div id="read-view" class="main-view active">
+                <div class="sections-container">
+                    {"".join(content_sections_html)}
+                </div>
+            </div>
+
+            <!-- VIEW 2: Dictionary Mode (Tâi-gí Sû-tián) -->
+            <div id="dict-view" class="main-view" style="display: none;">
+                <div class="dict-container">
+                    <header class="dict-header-banner">
+                        <div class="dict-banner-content">
+                            <span class="badge badge-primary">Tâi-gí Sû-tián</span>
+                            <h2 class="dict-view-title">台語詞典 · 全羅／漢羅模式</h2>
+                            <p class="dict-view-desc">自杜信龍老師台語文作品詞句擷取 · 支援台語漢字、白話字 (POJ)、台羅 (Tâi-lô) 與數字調</p>
+                        </div>
+                        <div class="dict-banner-actions">
+                            <button class="btn btn-outline" onclick="switchAppMode('read')">← 返回閱讀文章</button>
+                        </div>
+                    </header>
+
+                    <div class="dict-search-panel">
+                        <div class="dict-mode-subtabs">
+                            <button id="tab-dict" class="dict-subtab active">📖 詞典查詞</button>
+                            <button id="tab-help" class="dict-subtab">ℹ️ 台羅/白話字音標說明</button>
+                        </div>
+
+                        <div id="dict-search-controls">
+                            <div class="dict-input-wrap">
+                                <input type="text" id="dict-search" class="dict-search-box" placeholder="🔍 輸入台語漢字 (如 食、代誌、作穡) 或 拼音 (如 chiah8, taigi, seng-te)..." autocomplete="off" />
+                                <button id="dict-clear-btn" class="dict-clear-btn" title="清除">✕</button>
+                            </div>
+                            <div class="dict-search-tips">
+                                💡 支援多種輸入：漢字（<span class="tip-pill">食</span>、<span class="tip-pill">作穡</span>、<span class="tip-pill">好朋友</span>）、白話字（<span class="tip-pill">chia̍h</span>）、台羅（<span class="tip-pill">tsia̍h</span>）、數字調（<span class="tip-pill">tai5-gi2</span>）或無調號（<span class="tip-pill">chiah</span>）
+                            </div>
+
+                            <div class="dict-meta-row">
+                                <div id="stat-line" class="dict-stat-line">載入字典資料庫中...</div>
+                                <div class="dict-sort-box">
+                                    <span class="sort-label">排序方式：</span>
+                                    <button id="sort-toggle-btn" class="sort-toggle-btn">出現頻率 ▾</button>
+                                </div>
+                            </div>
+
+                            <div id="letter-grid" class="letter-grid"></div>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Dictionary Results / Detail Area -->
+                    <div id="content-inner" class="dict-content-inner">
+                        <div class="dict-loading-box">
+                            <div class="dict-spinner"></div>
+                            <p>正在載入台語詞典資料庫 (8,139 條詞目)...</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Back to top button -->
@@ -654,14 +749,15 @@ index_html = f'''<!DOCTYPE html>
         </main>
     </div>
 
-    <!-- Floating Tools Control (Theme & Font Adjust) -->
+    <!-- Floating Tools Control (Theme & Font Adjust & Mode Switch) -->
     <div class="floating-controls">
+        <button id="floating-dict-toggle" class="control-btn dict-toggle-btn" title="切換台語字典模式" onclick="toggleAppMode()">📚 字典</button>
         <button id="font-decrease-btn" class="control-btn" title="縮小字體">A-</button>
         <button id="font-increase-btn" class="control-btn" title="放大字體">A+</button>
         <button id="theme-toggle-btn" class="control-btn theme-toggle" title="切換深淺模式">🌙</button>
     </div>
 
-    <!-- Reader Script -->
+    <!-- Reader & Dictionary Script -->
     <script src="script.js"></script>
 </body>
 </html>
@@ -670,4 +766,5 @@ index_html = f'''<!DOCTYPE html>
 with open('index.html', 'w', encoding='utf-8') as f:
     f.write(index_html)
 
-print("Generated index.html successfully")
+print("Generated index.html with Dictionary Mode successfully")
+
